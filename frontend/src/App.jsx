@@ -27,6 +27,13 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [pendingSearch, setPendingSearch] = useState(null);
+  const [detailPanelRatio, setDetailPanelRatio] = useState(0.5);
+  const [viewport, setViewport] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    header: 104,
+    nav: 62,
+  });
   const [darkMode, setDarkMode] = useState(() => {
     try {
       return localStorage.getItem('roots-routes-theme') === 'dark';
@@ -35,6 +42,7 @@ export default function App() {
     }
   });
   const mapRef = useRef(null);
+  const panelDragRef = useRef(null);
 
   const { toasts, addToast } = useToasts();
   const onMarkersError = useCallback(
@@ -42,6 +50,56 @@ export default function App() {
     [addToast]
   );
   const { markers, demo, loadMarkers } = useMarkers({ onError: onMarkersError });
+
+  useEffect(() => {
+    const measure = () => {
+      const header = document.querySelector('.topnav');
+      const nav = document.querySelector('.nav-links');
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        header: header?.getBoundingClientRect().height || 104,
+        nav: nav && getComputedStyle(nav).position === 'fixed'
+          ? nav.getBoundingClientRect().height
+          : 0,
+      });
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    const observer = new ResizeObserver(measure);
+    const header = document.querySelector('.topnav');
+    const nav = document.querySelector('.nav-links');
+    if (header) observer.observe(header);
+    if (nav) observer.observe(nav);
+    return () => {
+      window.removeEventListener('resize', measure);
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onPointerMove = (event) => {
+      const drag = panelDragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const coordinate = drag.axis === 'y' ? event.clientY : event.clientX;
+      const delta = drag.startCoordinate - coordinate;
+      const ratio = Math.max(0.15, Math.min(0.85, drag.startRatio + delta / drag.available));
+      setDetailPanelRatio(ratio);
+    };
+    const stopDragging = (event) => {
+      if (panelDragRef.current?.pointerId === event.pointerId) panelDragRef.current = null;
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', stopDragging);
+    window.addEventListener('pointercancel', stopDragging);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', stopDragging);
+      window.removeEventListener('pointercancel', stopDragging);
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -112,6 +170,7 @@ export default function App() {
       pendingSearch.zoom,
       pendingSearch.label
     );
+    if (pendingSearch.markerId) setDetailPanelRatio(0.5);
     setSelectedId(pendingSearch.markerId || null);
     setPendingSearch(null);
   }, [pendingSearch, view]);
@@ -133,6 +192,27 @@ export default function App() {
 
   function toggleTheme() {
     setDarkMode((current) => !current);
+  }
+
+  function startPanelResize(event) {
+    event.preventDefault();
+    const portrait = viewport.height >= viewport.width;
+    const available = portrait
+      ? Math.max(1, viewport.height - viewport.header - viewport.nav)
+      : Math.max(1, viewport.width);
+    panelDragRef.current = {
+      pointerId: event.pointerId,
+      axis: portrait ? 'y' : 'x',
+      startCoordinate: portrait ? event.clientY : event.clientX,
+      startRatio: detailPanelRatio,
+      available,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleSelectMarker(id) {
+    if (id) setDetailPanelRatio(0.5);
+    setSelectedId(id);
   }
 
   function openAdd(prefillType = null) {
@@ -254,6 +334,7 @@ export default function App() {
   }
 
   function openOnMap(id) {
+    setDetailPanelRatio(0.5);
     setSelectedId(id);
     setView('map');
   }
@@ -263,6 +344,7 @@ export default function App() {
     setPicking(false);
     setPicked(null);
     setSelectedId(null);
+    setDetailPanelRatio(0.5);
     setPendingSearch({
       lat: config.center.lat,
       lng: config.center.lng,
@@ -272,8 +354,21 @@ export default function App() {
     setView('map');
   }
 
+  const panelPortrait = viewport.height >= viewport.width;
+  const panelAvailable = panelPortrait
+    ? Math.max(1, viewport.height - viewport.header - viewport.nav)
+    : Math.max(1, viewport.width);
+
   return (
-    <div className="app" data-theme={darkMode ? 'dark' : 'light'}>
+    <div
+      className="app"
+      data-theme={darkMode ? 'dark' : 'light'}
+      style={{
+        '--mobile-panel-size': `${Math.round(panelAvailable * detailPanelRatio)}px`,
+        '--mobile-header-size': `${viewport.header}px`,
+        '--mobile-nav-size': `${viewport.nav}px`,
+      }}
+    >
       <TopNav
         view={view}
         onNav={setView}
@@ -305,11 +400,12 @@ export default function App() {
               markers={markers}
               filters={filters}
               selectedId={selectedId}
-              onSelect={setSelectedId}
+              onSelect={handleSelectMarker}
               onOpenAdd={() => openAdd(null)}
               center={config.center}
               zoom={config.zoom}
               darkMode={darkMode}
+              detailOpen={Boolean(selected)}
               picking={picking}
               picked={picked}
               onPick={(lat, lng) => setPicked({ lat, lng })}
@@ -341,6 +437,7 @@ export default function App() {
         <DetailPanel
           marker={selected}
           onClose={() => setSelectedId(null)}
+          onResizeStart={startPanelResize}
           onStatus={handleStatus}
           onDelete={handleDelete}
           canDelete={canDelete(selected)}

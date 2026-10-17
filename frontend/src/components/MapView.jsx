@@ -51,6 +51,7 @@ const MapView = forwardRef(function MapView(
     center,
     zoom,
     darkMode,
+    detailOpen,
     picking,
     picked,
     onPick,
@@ -196,7 +197,7 @@ const MapView = forwardRef(function MapView(
   }
 
   return (
-    <div className="map-view">
+    <div className="map-view" data-detail-open={detailOpen ? 'true' : 'false'}>
       <div ref={containerRef} className="map-canvas" />
 
       {/* Category filter chips */}

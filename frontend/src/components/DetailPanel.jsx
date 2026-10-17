@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { categoryOf, SEVERITY, STATUS, TYPES } from '../utils/markerMeta.js';
 import { prettyDate } from '../utils/format.js';
 
-export default function DetailPanel({ marker, onClose, onStatus, onDelete, canDelete, onAddMemory, onFlyTo }) {
+export default function DetailPanel({ marker, onClose, onResizeStart, onStatus, onDelete, canDelete, onAddMemory, onFlyTo }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
   const meta = TYPES[marker.type];
@@ -15,6 +15,15 @@ export default function DetailPanel({ marker, onClose, onStatus, onDelete, canDe
 
   return (
     <aside className="detail-panel">
+      <button
+        className="detail-resize-handle"
+        type="button"
+        onPointerDown={onResizeStart}
+        aria-label="Resize post and map"
+        title="Drag to resize the map and post"
+      >
+        <span />
+      </button>
       <div className="panel-head">
         <div className="panel-head-top">
           <span className="type-badge" style={{ background: meta.soft, color: meta.color }}>
