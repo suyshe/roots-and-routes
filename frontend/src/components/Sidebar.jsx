@@ -1,6 +1,6 @@
 import { TYPES } from '../utils/markerMeta.js';
 
-export default function Sidebar({ counts, filters, onToggleFilter, onOpenAdd, onSync, googleFormUrl }) {
+export default function Sidebar({ counts, filters, onToggleFilter, onOpenAdd }) {
   return (
     <aside className="sidebar">
       <div className="side-head">
@@ -63,33 +63,6 @@ export default function Sidebar({ counts, filters, onToggleFilter, onOpenAdd, on
             </span>
           </button>
         </div>
-      </div>
-
-      <div className="side-section side-tools">
-        <h3 className="side-label">Data</h3>
-        <button className="tool-item" onClick={() => (window.location.href = '/api/export.csv')}>
-          <span className="material-symbols-outlined">download</span>
-          <span>
-            <strong>Export CSV</strong>
-            <small>Import into Google Sheets</small>
-          </span>
-        </button>
-        <button className="tool-item" onClick={onSync}>
-          <span className="material-symbols-outlined">table_view</span>
-          <span>
-            <strong>Sync to Google Sheets</strong>
-            <small>Push markers to the spreadsheet</small>
-          </span>
-        </button>
-        {googleFormUrl && (
-          <a className="tool-item" href={googleFormUrl} target="_blank" rel="noreferrer">
-            <span className="material-symbols-outlined">assignment</span>
-            <span>
-              <strong>Data collection form</strong>
-              <small>Google Form for offline entries</small>
-            </span>
-          </a>
-        )}
       </div>
 
       <div className="side-foot">

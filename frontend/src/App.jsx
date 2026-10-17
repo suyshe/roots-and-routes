@@ -213,15 +213,6 @@ export default function App() {
     }
   }
 
-  async function handleSync() {
-    try {
-      const res = await api.syncSheets();
-      addToast(res.message, res.ok ? 'success' : 'error');
-    } catch (err) {
-      addToast(demoMessage('Sync failed: ' + err.message), 'error');
-    }
-  }
-
   async function handleSearch(term) {
     const query = term.trim();
     const q = query.toLowerCase();
@@ -290,8 +281,6 @@ export default function App() {
           filters={filters}
           onToggleFilter={toggleFilter}
           onOpenAdd={openAdd}
-          onSync={handleSync}
-          googleFormUrl={config.googleFormUrl}
         />
 
         <main className="main-area">
