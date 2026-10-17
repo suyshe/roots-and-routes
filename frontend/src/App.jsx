@@ -258,11 +258,26 @@ export default function App() {
     setView('map');
   }
 
+  function handleHome() {
+    setAdding(false);
+    setPicking(false);
+    setPicked(null);
+    setSelectedId(null);
+    setPendingSearch({
+      lat: config.center.lat,
+      lng: config.center.lng,
+      zoom: config.zoom,
+      markerId: null,
+    });
+    setView('map');
+  }
+
   return (
     <div className="app" data-theme={darkMode ? 'dark' : 'light'}>
       <TopNav
         view={view}
         onNav={setView}
+        onHome={handleHome}
         onSearch={handleSearch}
         onOpenAdd={() => openAdd(null)}
         demo={demo}

@@ -7,7 +7,7 @@ const LINKS = [
   { id: 'reports', label: 'Reports', icon: 'campaign' },
 ];
 
-export default function TopNav({ view, onNav, onSearch, onOpenAdd, demo, user, authLoading, onSignIn, onSignOut, searching, darkMode, onToggleTheme }) {
+export default function TopNav({ view, onNav, onHome, onSearch, onOpenAdd, demo, user, authLoading, onSignIn, onSignOut, searching, darkMode, onToggleTheme }) {
   const [term, setTerm] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef(null);
@@ -35,7 +35,7 @@ export default function TopNav({ view, onNav, onSearch, onOpenAdd, demo, user, a
 
   return (
     <header className="topnav">
-      <button className="logo" onClick={() => onNav('map')} title="Roots & Routes home">
+      <button className="logo" onClick={onHome} title="Roots & Routes home">
         <img className="logo-mark" src={LOGO_URL} alt="Roots & Routes logo" />
         <span className="logo-text">
           Roots &amp; <span>Routes</span>
