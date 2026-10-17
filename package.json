@@ -1,0 +1,16 @@
+{
+  "name": "civicpulse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Roots & Routes — Community Map & Memories. Community memories, heritage sites, safety & accessibility reporting on a shared map.",
+  "scripts": {
+    "setup": "npm install && npm install --prefix server && npm install --prefix frontend",
+    "dev": "concurrently -n server,frontend -c blue,green \"npm --prefix server run dev\" \"npm --prefix frontend run dev\"",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix server start",
+    "seed": "npm --prefix server run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
