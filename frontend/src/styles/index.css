@@ -1123,7 +1123,11 @@ textarea {
 
 .panel-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   padding: 18px 20px 20px;
 }
 
@@ -2132,17 +2136,22 @@ textarea {
   }
 
   .detail-panel {
-    top: var(--mobile-header-size, 104px);
-    bottom: var(--mobile-nav-size, 62px);
-    height: auto;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    width: 100%;
+    height: var(--mobile-panel-size, 50%);
     min-height: 0;
     max-height: none;
+    border-radius: 18px 18px 0 0;
+    border-left: none;
   }
 
   .detail-resize-handle {
     position: absolute;
     z-index: 2;
-    top: -10px;
+    top: -12px;
     left: 50%;
     display: flex;
     align-items: center;
@@ -2155,6 +2164,8 @@ textarea {
     background: var(--surface);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
     touch-action: none;
+    user-select: none;
+    cursor: ns-resize;
     cursor: ns-resize;
   }
 
@@ -2286,79 +2297,6 @@ textarea {
     padding-left: 8px;
   }
 
-  @media (max-height: 500px) and (pointer: coarse) and (orientation: landscape) {
-    .topnav {
-      height: 56px;
-      min-height: 56px;
-      flex-wrap: nowrap;
-      gap: 8px;
-      padding: 4px 10px;
-    }
-
-    .logo-mark {
-      width: 34px;
-      height: 34px;
-    }
-
-    .searchbox {
-      order: initial;
-      flex: 1 1 auto;
-      min-width: 100px;
-      height: 38px;
-    }
-
-    .topnav-actions {
-      flex: 0 0 auto;
-    }
-
-    .nav-links {
-      min-height: 48px;
-      padding: 3px 8px;
-    }
-
-    .nav-link {
-      min-height: 42px;
-    }
-
-    .app-body {
-      padding-bottom: 54px;
-    }
-
-    .detail-panel {
-      top: var(--mobile-header-size, 56px);
-      right: 0;
-      bottom: var(--mobile-nav-size, 54px);
-      left: auto;
-      width: var(--mobile-panel-size, 50vw);
-      height: auto;
-      min-height: 0;
-      border-radius: 16px 0 0 16px;
-      border-right: none;
-      border-bottom: none;
-      border-left: 1px solid var(--border);
-      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.2);
-    }
-
-    .detail-resize-handle {
-      top: 50%;
-      left: -10px;
-      width: 24px;
-      height: 72px;
-      transform: translateY(-50%);
-      cursor: ew-resize;
-    }
-
-    .detail-resize-handle span {
-      width: 4px;
-      height: 34px;
-    }
-
-    .map-view[data-detail-open='true'] {
-      right: var(--mobile-panel-size, 50vw);
-      bottom: 0;
-    }
-  }
-
   .logo-mark {
     width: 34px;
     height: 34px;
@@ -2423,5 +2361,81 @@ textarea {
   .report-top .status-pill {
     padding: 4px 7px;
     font-size: 11px;
+  }
+}
+
+@media (max-height: 500px) and (pointer: coarse) and (orientation: landscape) {
+  .topnav {
+    height: 50px;
+    min-height: 50px;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 3px 10px;
+  }
+
+  .logo-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .searchbox {
+    order: initial;
+    flex: 1 1 auto;
+    min-width: 80px;
+    height: 36px;
+  }
+
+  .topnav-actions {
+    flex: 0 0 auto;
+  }
+
+  .nav-links {
+    min-height: 42px;
+    padding: 2px 8px;
+  }
+
+  .nav-link {
+    min-height: 38px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
+  .app-body {
+    padding-bottom: calc(44px + env(safe-area-inset-bottom));
+  }
+
+  .detail-panel {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    width: var(--mobile-panel-size, 50%);
+    height: auto;
+    border-radius: 0 16px 16px 0;
+    border-right: 1px solid var(--border);
+    border-bottom: none;
+    border-left: none;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .detail-resize-handle {
+    top: 50%;
+    right: -12px;
+    left: auto;
+    width: 24px;
+    height: 72px;
+    transform: translateY(-50%);
+    cursor: ew-resize;
+  }
+
+  .detail-resize-handle span {
+    width: 4px;
+    height: 34px;
+  }
+
+  .map-view[data-detail-open='true'] {
+    left: var(--mobile-panel-size, 50%);
+    right: 0;
+    bottom: 0;
   }
 }

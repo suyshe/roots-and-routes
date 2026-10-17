@@ -31,8 +31,6 @@ export default function App() {
   const [viewport, setViewport] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
-    header: 104,
-    nav: 62,
   });
   const [darkMode, setDarkMode] = useState(() => {
     try {
@@ -42,6 +40,7 @@ export default function App() {
     }
   });
   const mapRef = useRef(null);
+  const mainAreaRef = useRef(null);
   const panelDragRef = useRef(null);
 
   const { toasts, addToast } = useToasts();
@@ -53,52 +52,15 @@ export default function App() {
 
   useEffect(() => {
     const measure = () => {
-      const header = document.querySelector('.topnav');
-      const nav = document.querySelector('.nav-links');
       setViewport({
         width: window.innerWidth,
         height: window.innerHeight,
-        header: header?.getBoundingClientRect().height || 104,
-        nav: nav && getComputedStyle(nav).position === 'fixed'
-          ? nav.getBoundingClientRect().height
-          : 0,
       });
     };
 
     measure();
     window.addEventListener('resize', measure);
-    const observer = new ResizeObserver(measure);
-    const header = document.querySelector('.topnav');
-    const nav = document.querySelector('.nav-links');
-    if (header) observer.observe(header);
-    if (nav) observer.observe(nav);
-    return () => {
-      window.removeEventListener('resize', measure);
-      observer.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    const onPointerMove = (event) => {
-      const drag = panelDragRef.current;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      const coordinate = drag.axis === 'y' ? event.clientY : event.clientX;
-      const delta = drag.startCoordinate - coordinate;
-      const ratio = Math.max(0.15, Math.min(0.85, drag.startRatio + delta / drag.available));
-      setDetailPanelRatio(ratio);
-    };
-    const stopDragging = (event) => {
-      if (panelDragRef.current?.pointerId === event.pointerId) panelDragRef.current = null;
-    };
-
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', stopDragging);
-    window.addEventListener('pointercancel', stopDragging);
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', stopDragging);
-      window.removeEventListener('pointercancel', stopDragging);
-    };
+    return () => window.removeEventListener('resize', measure);
   }, []);
 
   useEffect(() => {
@@ -197,9 +159,10 @@ export default function App() {
   function startPanelResize(event) {
     event.preventDefault();
     const portrait = viewport.height >= viewport.width;
-    const available = portrait
-      ? Math.max(1, viewport.height - viewport.header - viewport.nav)
-      : Math.max(1, viewport.width);
+    const mainArea = mainAreaRef.current;
+    if (!mainArea) return;
+    const available = portrait ? mainArea.clientHeight : mainArea.clientWidth;
+    if (!available) return;
     panelDragRef.current = {
       pointerId: event.pointerId,
       axis: portrait ? 'y' : 'x',
@@ -208,6 +171,21 @@ export default function App() {
       available,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function movePanelResize(event) {
+    const drag = panelDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const coordinate = drag.axis === 'y' ? event.clientY : event.clientX;
+    const delta = drag.axis === 'y'
+      ? drag.startCoordinate - coordinate
+      : coordinate - drag.startCoordinate;
+    const ratio = Math.max(0.2, Math.min(0.8, drag.startRatio + delta / drag.available));
+    setDetailPanelRatio(ratio);
+  }
+
+  function stopPanelResize(event) {
+    if (panelDragRef.current?.pointerId === event.pointerId) panelDragRef.current = null;
   }
 
   function handleSelectMarker(id) {
@@ -354,19 +332,12 @@ export default function App() {
     setView('map');
   }
 
-  const panelPortrait = viewport.height >= viewport.width;
-  const panelAvailable = panelPortrait
-    ? Math.max(1, viewport.height - viewport.header - viewport.nav)
-    : Math.max(1, viewport.width);
-
   return (
     <div
       className="app"
       data-theme={darkMode ? 'dark' : 'light'}
       style={{
-        '--mobile-panel-size': `${Math.round(panelAvailable * detailPanelRatio)}px`,
-        '--mobile-header-size': `${viewport.header}px`,
-        '--mobile-nav-size': `${viewport.nav}px`,
+        '--mobile-panel-size': `${Math.round(detailPanelRatio * 100)}%`,
       }}
     >
       <TopNav
@@ -393,7 +364,7 @@ export default function App() {
           onOpenAdd={openAdd}
         />
 
-        <main className="main-area">
+        <main className="main-area" ref={mainAreaRef}>
           {view === 'map' && (
             <MapView
               ref={mapRef}
@@ -410,6 +381,23 @@ export default function App() {
               picked={picked}
               onPick={(lat, lng) => setPicked({ lat, lng })}
               onToggleFilter={toggleFilter}
+            />
+          )}
+          {view === 'map' && selected && (
+            <DetailPanel
+              marker={selected}
+              onClose={() => setSelectedId(null)}
+              onResizeStart={startPanelResize}
+              onResizeMove={movePanelResize}
+              onResizeEnd={stopPanelResize}
+              onStatus={handleStatus}
+              onDelete={handleDelete}
+              canDelete={canDelete(selected)}
+              onAddMemory={() => {
+                setSelectedId(null);
+                openAdd('memory');
+              }}
+              onFlyTo={() => mapRef.current?.flyTo(selected.lat, selected.lng, 16)}
             />
           )}
           {view === 'community' && (
@@ -432,22 +420,6 @@ export default function App() {
           )}
         </main>
       </div>
-
-      {view === 'map' && selected && (
-        <DetailPanel
-          marker={selected}
-          onClose={() => setSelectedId(null)}
-          onResizeStart={startPanelResize}
-          onStatus={handleStatus}
-          onDelete={handleDelete}
-          canDelete={canDelete(selected)}
-          onAddMemory={() => {
-            setSelectedId(null);
-            openAdd('memory');
-          }}
-          onFlyTo={() => mapRef.current?.flyTo(selected.lat, selected.lng, 16)}
-        />
-      )}
 
       {adding && (
         <AddPinModal
