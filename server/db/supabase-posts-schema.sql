@@ -110,10 +110,10 @@ create policy "Users can delete their own post images" on public.post_images for
 );
 
 -- Storage bucket: community-post-images
--- Create the bucket in Supabase Dashboard → Storage → New bucket
--- Bucket name: community-post-images
--- Public: false if you want private URLs or true if you want public read access.
--- The app expects a public bucket for direct display in the map/feed.
+-- The app displays photos using public object URLs, so this bucket must be public.
+insert into storage.buckets (id, name, public)
+values ('community-post-images', 'community-post-images', true)
+on conflict (id) do update set public = excluded.public;
 
 -- Example SQL policy for a public bucket:
 -- create policy "Public read community images" on storage.objects for select using (bucket_id = 'community-post-images');

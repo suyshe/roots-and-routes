@@ -66,6 +66,16 @@ app.post('/api/posts', requireAuth, upload.array('photos', 10), async (req, res)
     res.status(201).json(post);
   } catch (err) {
     res.status(400).json({ error: err.message || 'Could not create post' });
+  } finally {
+    for (const file of req.files || []) {
+      try {
+        await fs.promises.unlink(file.path);
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          console.error('[uploads] Could not remove temporary file:', err.message);
+        }
+      }
+    }
   }
 });
 

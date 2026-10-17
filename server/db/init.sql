@@ -49,6 +49,10 @@ create table if not exists public.post_images (
   created_at timestamptz not null default now()
 );
 
+insert into storage.buckets (id, name, public)
+values ('community-post-images', 'community-post-images', true)
+on conflict (id) do update set public = excluded.public;
+
 create index if not exists idx_posts_type_created_at on public.posts (type, created_at desc);
 create index if not exists idx_posts_location on public.posts (latitude, longitude);
 create index if not exists idx_post_images_post_id on public.post_images (post_id, display_order);

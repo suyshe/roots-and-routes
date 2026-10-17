@@ -28,6 +28,17 @@ const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 const SUPABASE_URL = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
 const SUPABASE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 const useSupabase = Boolean(SUPABASE_URL && SUPABASE_KEY);
+const IMAGE_BUCKET = 'community-post-images';
+
+function publicImageUrl(storagePath) {
+  return `${SUPABASE_URL.replace(/\/+$/, '')}/storage/v1/object/public/${IMAGE_BUCKET}/${storagePath}`;
+}
+
+async function getUploadBuffer(file) {
+  if (file.buffer) return file.buffer;
+  if (file.path) return fs.promises.readFile(file.path);
+  throw new Error('Uploaded image has no readable file data');
+}
 
 let supabase = null;
 if (useSupabase) {
@@ -155,7 +166,9 @@ async function listPosts({ type } = {}) {
     const { data, error } = await query;
     if (error) throw new Error('Supabase posts query failed: ' + error.message);
     return (data || []).map((row) => {
-      const photoUrls = (row.post_images || []).map((img) => img.storage_path ? `https://${SUPABASE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '')}/storage/v1/object/public/community-post-images/${img.storage_path}` : img.storage_url).filter(Boolean);
+      const photoUrls = (row.post_images || [])
+        .map((img) => img.storage_path ? publicImageUrl(img.storage_path) : img.storage_url)
+        .filter(Boolean);
       return mapRowToMarker({ ...row, photo_urls: photoUrls, photos: photoUrls });
     });
   }
@@ -192,42 +205,44 @@ async function createPost(input, files = []) {
       base.id = input.id;
     }
     const uploadedImages = [];
-    const uploadedImageRows = [];
+    let createdPostId = null;
 
     try {
       const { data, error } = await supabase.from('posts').insert(base).select().single();
       if (error) throw new Error('Post creation failed: ' + error.message);
+      createdPostId = data.id;
 
       for (const file of files || []) {
         if (!file || !file.originalname) continue;
         const storagePath = buildStoragePath(data.id, file.originalname);
-        const { error: uploadError } = await supabase.storage.from('community-post-images').upload(storagePath, file.buffer || file, {
+        const fileBuffer = await getUploadBuffer(file);
+        const { error: uploadError } = await supabase.storage.from(IMAGE_BUCKET).upload(storagePath, fileBuffer, {
           upsert: false,
           contentType: file.mimetype || file.type || 'application/octet-stream',
         });
         if (uploadError) {
           throw new Error('Image upload failed: ' + uploadError.message);
         }
-        const { data: rowData, error: insertError } = await supabase.from('post_images').insert({
+        uploadedImages.push(storagePath);
+        const { error: insertError } = await supabase.from('post_images').insert({
           post_id: data.id,
           storage_path: storagePath,
           display_order: uploadedImages.length,
-        }).select().single();
+        });
         if (insertError) throw new Error('Image metadata insert failed: ' + insertError.message);
-        uploadedImages.push(storagePath);
-        uploadedImageRows.push(rowData);
       }
 
       const finalRecord = await getPostById(data.id);
-      return finalRecord || mapRowToMarker({ ...data, photo_urls: uploadedImages.map((path) => `${SUPABASE_URL}/storage/v1/object/public/community-post-images/${path}`), photos: uploadedImages.map((path) => `${SUPABASE_URL}/storage/v1/object/public/community-post-images/${path}`) });
+      const photoUrls = uploadedImages.map(publicImageUrl);
+      return finalRecord || mapRowToMarker({ ...data, photo_urls: photoUrls, photos: photoUrls });
     } catch (err) {
       if (uploadedImages.length > 0) {
-        await supabase.storage.from('community-post-images').remove(uploadedImages).catch(() => {});
+        const { error: cleanupError } = await supabase.storage.from(IMAGE_BUCKET).remove(uploadedImages);
+        if (cleanupError) console.error('[db] Could not clean up failed post image uploads:', cleanupError.message);
       }
-      if (base.id) {
-        try {
-          await supabase.from('posts').delete().eq('id', base.id);
-        } catch {}
+      if (createdPostId) {
+        const { error: cleanupError } = await supabase.from('posts').delete().eq('id', createdPostId);
+        if (cleanupError) console.error('[db] Could not remove incomplete post after image upload failure:', cleanupError.message);
       }
       throw err;
     }
@@ -267,7 +282,9 @@ async function getPostById(id) {
       if (error.code === 'PGRST116') return null;
       throw new Error('Supabase post lookup failed: ' + error.message);
     }
-    const photoUrls = (data.post_images || []).map((img) => img.storage_path ? `${SUPABASE_URL}/storage/v1/object/public/community-post-images/${img.storage_path}` : img.storage_url).filter(Boolean);
+    const photoUrls = (data.post_images || [])
+      .map((img) => img.storage_path ? publicImageUrl(img.storage_path) : img.storage_url)
+      .filter(Boolean);
     return mapRowToMarker({ ...data, photo_urls: photoUrls, photos: photoUrls });
   }
   return listMarkers().then((rows) => rows.find((m) => m.id === id) || null);
@@ -286,7 +303,9 @@ async function updatePost(id, patch) {
   if (useSupabase) {
     const { data, error } = await supabase.from('posts').update(updates).eq('id', id).select('*, post_images(*)').single();
     if (error) throw new Error('Supabase post update failed: ' + error.message);
-    const photoUrls = (data.post_images || []).map((img) => img.storage_path ? `${SUPABASE_URL}/storage/v1/object/public/community-post-images/${img.storage_path}` : img.storage_url).filter(Boolean);
+    const photoUrls = (data.post_images || [])
+      .map((img) => img.storage_path ? publicImageUrl(img.storage_path) : img.storage_url)
+      .filter(Boolean);
     return mapRowToMarker({ ...data, photo_urls: photoUrls, photos: photoUrls });
   }
 
@@ -327,16 +346,18 @@ async function uploadPostImages(postId, files, options = {}) {
   for (let i = 0; i < files.length; i += 1) {
     const file = files[i];
     const storagePath = buildStoragePath(postId, file.originalname || `image-${i + 1}`);
-    const { error } = await supabase.storage.from('community-post-images').upload(storagePath, file.buffer || file, {
+    const fileBuffer = await getUploadBuffer(file);
+    const { error } = await supabase.storage.from(IMAGE_BUCKET).upload(storagePath, fileBuffer, {
       upsert: false,
       contentType: file.mimetype || file.type || 'application/octet-stream',
     });
     if (error) throw new Error('Image upload failed: ' + error.message);
-    await supabase.from('post_images').insert({
+    const { error: insertError } = await supabase.from('post_images').insert({
       post_id: postId,
       storage_path: storagePath,
       display_order: i + (options.startIndex || 0),
     });
+    if (insertError) throw new Error('Image metadata insert failed: ' + insertError.message);
     uploaded.push(storagePath);
   }
   return { uploaded, count: uploaded.length };

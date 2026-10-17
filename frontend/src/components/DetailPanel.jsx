@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { categoryOf, SEVERITY, STATUS, TYPES } from '../utils/markerMeta.js';
 import { prettyDate } from '../utils/format.js';
 
 export default function DetailPanel({ marker, onClose, onStatus, onDelete, canDelete, onAddMemory, onFlyTo }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const meta = TYPES[marker.type];
   const cat = categoryOf(marker.type, marker.category);
   const isReport = marker.type === 'safety' || marker.type === 'accessibility';
+
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [marker.id, marker.photo]);
 
   return (
     <aside className="detail-panel">
@@ -49,13 +54,14 @@ export default function DetailPanel({ marker, onClose, onStatus, onDelete, canDe
       </div>
 
       <div className="panel-body">
-        {marker.photo && (
-          <img
-            className="panel-photo"
-            src={marker.photo}
-            alt={marker.title}
-            onError={(e) => (e.currentTarget.style.display = 'none')}
-          />
+        {marker.photo && !photoFailed && (
+          <img className="panel-photo" src={marker.photo} alt={marker.title} onError={() => setPhotoFailed(true)} />
+        )}
+        {marker.photo && photoFailed && (
+          <div className="panel-photo panel-photo--unavailable" role="status">
+            <span className="material-symbols-outlined">broken_image</span>
+            <span>Photo could not be loaded. Check that the Supabase image bucket is public.</span>
+          </div>
         )}
         {marker.description && <p className="panel-desc">{marker.description}</p>}
 

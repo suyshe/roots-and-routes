@@ -44,7 +44,7 @@ while the four marker colours stay fixed across the whole website.
 | ♿ **Accessibility reporting** | Wheelchair barriers, broken footpaths, missing ramps, difficult crossings, and more |
 | 📋 **Reports page** | All reports in one place, filter by type, mark as resolved / reopen |
 | 🏠 **Community dashboard** | Stats, trending memories, recent reports, top contributors |
-| 📷 **Photo uploads** | Attach a photo to any pin (stored on the server, or in Supabase storage later) |
+| 📷 **Photo uploads** | Attach photos to a pin and display them from the public Supabase Storage bucket |
 | 🔐 **Google sign-in and roles** | Signed-in users manage their own posts; configured admins can remove any post |
 | 📊 **Google Sheets** | One-click CSV export and an optional live sync to a spreadsheet via Apps Script |
 | 📝 **Google Forms** | Link your data-collection form and point the community to it from the UI |
@@ -152,7 +152,9 @@ as follows:
    Supabase instead of local JSON. Find the `service_role` secret (or legacy
    service-role key) under **Project Settings → API Keys**. Keep it only in the
    root `.env`; never expose it in the frontend or add a `VITE_` prefix. Run
-   `server/db/supabase-posts-schema.sql` in the Supabase SQL editor.
+   `server/db/supabase-posts-schema.sql` in the Supabase SQL editor. It also
+   creates or makes public the `community-post-images` bucket required for
+   photo uploads.
 
 For local Google authentication, set the two `VITE_SUPABASE_*` values and
 `ADMIN_EMAILS`. Leave `SUPABASE_SERVICE_ROLE_KEY` blank to use the local JSON
